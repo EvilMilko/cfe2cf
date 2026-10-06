@@ -1,64 +1,32 @@
 @echo off
-:: Включаем поддержку кириллицы
-chcp 65001 > nul
-setlocal enabledelayedexpansion
+setlocal
 
-:: 1. Проверяем, перетащили ли файл (используем правильное ==)
+rem ============================================================
+rem Drop a .cfe file onto this bat file.
+rem The exe finds the 1C:Enterprise platform on its own and
+rem creates the .cf file next to the source .cfe file.
+rem ============================================================
+
 if "%~1" == "" (
-    echo [Ошибка] Вы просто кликнули на батник. 
-    echo Чтобы он сработал, перетащите на него файл .cfe мышкой!
+    echo [ERROR] No file passed.
+    echo Drag and drop a .cfe file onto this bat file.
     echo.
     pause
     exit /b
 )
 
-:: 2. Проверяем, существует ли файл
 if not exist "%~1" (
-    echo [Ошибка] Указанный файл не найден.
+    echo [ERROR] File not found: "%~1"
     pause
     exit /b
 )
 
-:: 3. Проверяем, что это файл, а не папка
-dir /a-d "%~1" >nul 2>&1
-if errorlevel 1 (
-    echo [Ошибка] Вы перетащили папку. Нужен именно файл .cfe!
-    pause
-    exit /b
-)
+"%~dp0cfe2cf.exe" "%~f1"
+set "RC=%errorlevel%"
 
-:: 4. Извлекаем имя файла без расширения
-set "fullname=%~n1"
-set "ext_name=!fullname!"
-
-:: 5. Проверяем наличие даты _YYYYMMDD на конце (9 символов, первый из которых "_")
-set "suffix=!fullname:~-9!"
-if "!suffix:~0,1!" == "_" (
-    set "digits=!suffix:~1!"
-    :: Проверяем, что в хвосте только цифры
-    for /f "delims=0123456789" %%a in ("!digits!") do set "not_digits=%%a"
-    if not defined not_digits (
-        set "ext_name=!fullname:~0,-9!"
-    )
-)
-
-:: 6. Проверяем наличие cfe2cf.exe рядом с батником
-if not exist "%~dp0cfe2cf.exe" (
-    echo [Ошибка] В папке батника не найден файл cfe2cf.exe!
-    echo Он должен лежать здесь: "%~dp0"
+if not "%RC%" == "0" (
     echo.
-    pause
-    exit /b
+    echo [ERROR] Conversion failed, exit code %RC%.
 )
-
-:: 7. Запуск конвертации
-echo Файл источника:  "%~nx1"
-echo Имя расширения:  "!ext_name!"
-echo Выходной файл:   "%~n1.cf"
-echo ------------------------------------------------------------
-
-"%~dp0cfe2cf.exe" f "%~1" "!ext_name!" "%~dp0%~n1.cf"
-
-echo ------------------------------------------------------------
-echo Готово!
 pause
+exit /b %RC%
